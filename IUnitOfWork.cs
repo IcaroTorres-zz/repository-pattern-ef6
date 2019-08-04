@@ -1,5 +1,4 @@
-﻿using Domain.Entities;
-using System;
+﻿using System;
 using System.Data.Entity;
 
 namespace Stuart.Repository
