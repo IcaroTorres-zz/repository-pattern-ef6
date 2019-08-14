@@ -139,27 +139,5 @@ namespace Stuart.Repository
             return _context.Set<TEntity>().RemoveRange(entities);
         }
         #endregion
-
-        #region finishers
-        /// <summary>
-        /// Commit changes on entities to database or fails if no related context instance found.
-        /// </summary>
-        /// <returns cref="int">Number of changes.</returns>
-        public int Commit()
-        {
-            if (_context != null) return _context.SaveChanges();
-            else throw new NullReferenceException($"Commit fails. No instance of related {_context.GetType().Name} context found.");
-        }
-
-        /// <summary>
-        /// Rollback changes on entities to database to avoid missmanipulation of errores,
-        /// or fails if no related context instance found.
-        /// </summary>
-        public void Rollback()
-        {
-            if (_context != null) _context.ChangeTracker.Entries().ToList().ForEach(x => x.Reload());
-            else throw new NullReferenceException($"Commit fails. No instance of related {_context.GetType().Name} context found.");
-        }
-        #endregion
     }
 }

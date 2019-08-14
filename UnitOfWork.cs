@@ -85,6 +85,8 @@ namespace Stuart.Repository
         {
             if (contextDictionary.TryGetValue(typeof(TContext), out dynamic ctx))
                 (ctx as DbContext).ChangeTracker.Entries().ToList().ForEach(x => x.Reload());
+            else
+                throw new NullReferenceException($"Commit fails. No instance of related {typeof(TContext).Name} context found.");
         }
 
         /// <summary>

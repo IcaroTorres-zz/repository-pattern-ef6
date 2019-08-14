@@ -34,10 +34,5 @@ namespace Stuart.Repository
         IEnumerable<TEntity> RemoveRange(IEnumerable<TEntity> entities);
         IEnumerable<TEntity> RemoveRange(IEnumerable<TKey> keys);
         #endregion
-
-        #region finishers
-        int Commit();
-        void Rollback();
-        #endregion
     }
 }
