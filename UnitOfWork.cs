@@ -1,98 +1,99 @@
-﻿using System;
-using System.Collections.Generic;
+using Microsoft.Win32.SafeHandles;
+using Ninject;
+using System;
+using System.Data.Common;
 using System.Data.Entity;
-using System.Linq;
+using System.Runtime.InteropServices;
 
-namespace Stuart.Repository
+namespace Synapse.Repository
 {
-    public class UnitOfWork : IUnitOfWork
+    public class UnitOfWork<TContext> : IUnitOfWork<TContext> where TContext : DbContext
     {
-        private readonly Dictionary<Type, dynamic> contextDictionary;
-        private readonly Dictionary<Type, dynamic> repositoryDictionary;
+        [Inject]
+        private TContext Context { get; set; }
+        private DbContextTransaction Transaction;
 
-        #region constructor
         /// <summary>
         /// Construtor de Unidade de trabalho, injetada com os Contextos.
         /// </summary>
-        /// <param name="contexts"/>
-        public UnitOfWork(IEnumerable<DbContext> contexts)
-        {
-            if (contextDictionary == null)
-                contextDictionary = new Dictionary<Type, dynamic>();
-
-            if (repositoryDictionary == null)
-                repositoryDictionary = new Dictionary<Type, dynamic>();
-
-            foreach (var ctx in contexts)
-                if (!contextDictionary.ContainsKey(ctx.GetType())) contextDictionary.Add(ctx.GetType(), ctx);
-        }
-        #endregion
-
-        #region getters
-        /// <summary>
-        /// Genérico <typeparamref name="TContext"/> para obter o Contexto do tipo de parâmetro passado.
-        /// </summary>
-        /// <typeparam name="TContext">Um tipo que herda de DbContext.</typeparam>
-        public TContext Context<TContext>() where TContext : DbContext
-        {
-            contextDictionary.TryGetValue(typeof(TContext), out dynamic _ctx);
-
-            return _ctx ?? (TContext)Activator.CreateInstance(typeof(TContext));
-        }
+        /// <param name="context"/>
+        public UnitOfWork() { }
 
         /// <summary>
-        /// Generic implementation of repository getter using entity and key  types as type parameters
+        /// Begin a db transaction context
         /// </summary>
-        /// <typeparam name="TRepo">type inheriting Repository.</typeparam>
-        public Repository<TEntity, TKey> Repository<TEntity, TKey>() where TEntity : Entity<TKey>
-        {
-            Type repositoryType = typeof(Repository<TEntity, TKey>);
-
-            if (repositoryDictionary.TryGetValue(repositoryType, out dynamic repository))
-                return repository;
-            
-            Type contextType = repositoryType.GetProperty("Context").PropertyType;
-            var context = contextDictionary[contextType];
-
-            var repo = (Repository<TEntity, TKey>)Activator.CreateInstance(repositoryType, context);
-            repositoryDictionary.Add(repositoryType, repo);
-            return repo;
-        }
-
-        /// <summary>
-        /// Generic implementation of repository getter using a entity type with int key as type parameter
-        /// </summary>
-        /// <typeparam name="TRepo">type inheriting Repository.</typeparam>
-        public Repository<TEntity> Repository<TEntity>() where TEntity : Entity<int> => (Repository<TEntity>) Repository<TEntity, int>();
-        #endregion
+        public void BeginTransaction() => Transaction = Context.Database.BeginTransaction();
 
         #region finishers
-        /// <summary>
-        /// Generic saveChanges implementation using context as type parameter
-        /// </summary>
-        public int Commit<TContext>() where TContext : DbContext
-        {
-            if (contextDictionary.TryGetValue(typeof(TContext), out dynamic ctx))
-                return ctx.SaveChanges();
-            else
-                throw new NullReferenceException($"Commit fails. No instance of related {typeof(TContext).Name} context found.");
-        }
+        // Flag: Has Dispose already been called?
+        bool disposed = false;
+
+        // Instantiate a SafeHandle instance.
+        readonly SafeHandle handle = new SafeFileHandle(IntPtr.Zero, true);
 
         /// <summary>
-        /// Generic rollback implementation using context as type parameter
+        /// Dispose all unmanaged objects and the opened context
         /// </summary>
-        public void Rollback<TContext>() where TContext : DbContext
+        public void Dispose()
         {
-            if (contextDictionary.TryGetValue(typeof(TContext), out dynamic ctx))
-                (ctx as DbContext).ChangeTracker.Entries().ToList().ForEach(x => x.Reload());
-            else
-                throw new NullReferenceException($"Commit fails. No instance of related {typeof(TContext).Name} context found.");
+            // Dispose of unmanaged resources.
+            Dispose(true);
+            // Suppress finalization.
+            GC.SuppressFinalize(this);
         }
 
+        // Protected implementation of Dispose pattern.
         /// <summary>
-        /// Dispose all UnitOfWork's context instances
+        /// Dispose all unmanaged objects and the opened context
         /// </summary>
-        public void Dispose() => contextDictionary.ToList().ForEach(pair => (pair.Value as DbContext).Dispose());
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed) return;
+
+            if (disposing)
+            {
+                handle.Dispose();
+                Transaction.Dispose();
+                Context.Dispose();
+            }
+
+            disposed = true;
+        }
         #endregion
+
+        /// <summary>
+        /// Try committing all changes in transaction and perform Rollback if fail
+        /// </summary>
+        public void Commit()
+        {
+            try
+            {
+                // commit transaction if there is one active
+                if (Transaction != null)
+                    Transaction.Commit();
+            }
+            catch(DbException dbex)
+            {
+                // rollback if there was an exception
+                if (Transaction != null)
+                    Transaction.Rollback();
+
+                throw dbex;
+            }
+            finally { Dispose(); }
+        }
+
+        /// <summary>
+        /// Discard all unsaved changes, dispatched when Commit fails and used when some part of a transaction fails
+        /// </summary>
+        public void Rollback()
+        {
+            try
+            {
+                if (Transaction != null)
+                    Transaction.Rollback();
+            }
+            finally { Dispose(); }
+        }
     }
 }
