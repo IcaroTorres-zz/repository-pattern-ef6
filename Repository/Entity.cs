@@ -1,25 +1,25 @@
-﻿using System;
+﻿using Stuart.Domain;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Stuart.Repository
 {
-    public abstract class Entity<TKey>
+    public class Entity<TKey> : IEntity<TKey>
     {
-        [Key, Index(IsUnique = true), DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public TKey Id { get; set; }
 
-        #region Audit Fields
+        // Audit Fields
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public DateTime CreatedDate { get; internal set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public DateTime ModifiedDate { get; internal set; } = DateTime.UtcNow;
+        public DateTime ModifiedDate { get; set; } = DateTime.UtcNow;
 
         public string CreatedBy { get; set; }
         public string ModifiedBy { get; set; }
-        #endregion
 
-        // logic control flag
+        // logic exclusion control flag
         public bool Disabled { get; set; }
     }
 }

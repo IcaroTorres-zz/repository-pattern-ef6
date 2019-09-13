@@ -1,35 +1,31 @@
 using Microsoft.Win32.SafeHandles;
-using Ninject;
+using Stuart.Domain;
 using System;
 using System.Data.Common;
 using System.Data.Entity;
 using System.Runtime.InteropServices;
 
-namespace Synapse.Repository
+namespace Stuart.Repository
 {
-    public class UnitOfWork<TContext> : IUnitOfWork<TContext> where TContext : DbContext
+    public class UnitOfWork<T> : IUnitOfWork where T : DbContext
     {
-        [Inject]
-        private TContext Context { get; set; }
+        private readonly T Context;
         private DbContextTransaction Transaction;
 
         /// <summary>
         /// Construtor de Unidade de trabalho, injetada com os Contextos.
         /// </summary>
         /// <param name="context"/>
-        public UnitOfWork() { }
+        public UnitOfWork(T context) => Context = context;
 
         /// <summary>
         /// Begin a db transaction context
         /// </summary>
-        public void BeginTransaction() => Transaction = Context.Database.BeginTransaction();
+        public void Begin() => Transaction = Context.Database.BeginTransaction();
 
         #region finishers
-        // Flag: Has Dispose already been called?
-        bool disposed = false;
-
-        // Instantiate a SafeHandle instance.
-        readonly SafeHandle handle = new SafeFileHandle(IntPtr.Zero, true);
+        protected bool Disposed { get; private set; } = false;
+        protected SafeHandle Handle { get; } = new SafeFileHandle(IntPtr.Zero, true);
 
         /// <summary>
         /// Dispose all unmanaged objects and the opened context
@@ -48,18 +44,17 @@ namespace Synapse.Repository
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposed) return;
+            if (Disposed) return;
 
             if (disposing)
             {
-                handle.Dispose();
-                Transaction.Dispose();
+                Handle.Dispose();
+                Transaction?.Dispose();
                 Context.Dispose();
             }
 
-            disposed = true;
+            Disposed = true;
         }
-        #endregion
 
         /// <summary>
         /// Try committing all changes in transaction and perform Rollback if fail
@@ -69,14 +64,12 @@ namespace Synapse.Repository
             try
             {
                 // commit transaction if there is one active
-                if (Transaction != null)
-                    Transaction.Commit();
+                Transaction?.Commit();
             }
-            catch(DbException dbex)
+            catch (DbException dbex)
             {
                 // rollback if there was an exception
-                if (Transaction != null)
-                    Transaction.Rollback();
+                Transaction?.Rollback();
 
                 throw dbex;
             }
@@ -90,10 +83,10 @@ namespace Synapse.Repository
         {
             try
             {
-                if (Transaction != null)
-                    Transaction.Rollback();
+                Transaction?.Rollback();
             }
             finally { Dispose(); }
         }
+        #endregion
     }
 }

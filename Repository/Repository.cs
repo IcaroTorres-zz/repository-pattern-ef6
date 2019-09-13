@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Stuart.Domain;
+using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
@@ -6,12 +7,12 @@ using System.Linq.Expressions;
 
 namespace Stuart.Repository
 {
-    public class Repository<TEntity> : Repository<TEntity, int>, IRepository<TEntity, int> where TEntity : Entity<int>
+    public class Repository<T> : Repository<T, int>, IRepository<T, int> where T : Entity<int>
     {
         public Repository(DbContext context) : base(context) { }
     }
 
-    public class Repository<TEntity, TKey> : IRepository<TEntity, TKey> where TEntity : Entity<TKey>
+    public class Repository<T, K> : IRepository<T, K> where T : Entity<K>
     {
         protected DbContext _context;
         public Repository(DbContext context) => _context = context;
@@ -23,8 +24,8 @@ namespace Stuart.Repository
         /// <param name="key"></param>
         /// <param name="includes"></param>
         /// <param name="isreadonly"></param>
-        /// <returns cref="TEntity">Entity with given key.</returns>
-        public TEntity Get(TKey key, string includes = "", bool isreadonly = false) =>
+        /// <returns cref="T">Entity with given key.</returns>
+        public T Get(K key, string includes = "", bool isreadonly = false) =>
             isreadonly ? Find(e => e.Id.Equals(key), includes: includes).AsNoTracking().SingleOrDefault()
                        : Find(e => e.Id.Equals(key), includes: includes).SingleOrDefault();
 
@@ -32,16 +33,16 @@ namespace Stuart.Repository
         /// Get all entities from database entity set.
         /// </summary>
         /// <param name="isreadonly"></param>
-        /// <returns cref="IQueryable{TEntity}">Entities in database set.</returns>
-        public IQueryable<TEntity> GetAll(bool isreadonly = false) => isreadonly ? _context.Set<TEntity>().AsNoTracking() : _context.Set<TEntity>();
+        /// <returns cref="IQueryable{T}">Entities in database set.</returns>
+        public IQueryable<T> GetAll(bool isreadonly = false) => isreadonly ? _context.Set<T>().AsNoTracking() : _context.Set<T>();
 
         /// <summary>
         /// Get all entities from database entity set, including desired navigation properties.
         /// </summary>
         /// <param name="includes"></param>
         /// <param name="isreadonly"></param>
-        /// <returns cref="IQueryable{TEntity}">Entities in database set.</returns>
-        public IQueryable<TEntity> GetAll(string includes, bool isreadonly = false) => Find(includes: includes, isreadonly: isreadonly);
+        /// <returns cref="IQueryable{T}">Entities in database set.</returns>
+        public IQueryable<T> GetAll(string includes, bool isreadonly = false) => Find(includes: includes, isreadonly: isreadonly);
 
         /// <summary>
         /// Retrieve entities with optional expression predicate, ordering and property includes.
@@ -52,15 +53,15 @@ namespace Stuart.Repository
         /// <param name="top"></param>
         /// <param name="includes"></param>
         /// <param name="isreadonly"></param>
-        /// <returns cref="IQueryable{TEntity}">Entities in database set.</returns>
-        public IQueryable<TEntity> Find(Expression<Func<TEntity, bool>> predicate = null,
-                                        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> orderExpression = null,
+        /// <returns cref="IQueryable{T}">Entities in database set.</returns>
+        public IQueryable<T> Find(Expression<Func<T, bool>> predicate = null,
+                                        Func<IQueryable<T>, IOrderedQueryable<T>> orderExpression = null,
                                         int? skip = null,
                                         int? top = null,
                                         string includes = "",
                                         bool isreadonly = false)
         {
-            IQueryable<TEntity> query = _context.Set<TEntity>().Where(predicate ?? (e => true));
+            IQueryable<T> query = _context.Set<T>().Where(predicate ?? (e => true));
 
             orderExpression = orderExpression ?? (q => q.OrderBy(e => e.Id));
 
@@ -79,19 +80,19 @@ namespace Stuart.Repository
         /// Add given entity to database entity set.
         /// </summary>
         /// <param name="entity"></param>
-        public TEntity Add(TEntity entity) => _context.Set<TEntity>().Add(entity);
+        public T Add(T entity) => _context.Set<T>().Add(entity);
 
         /// <summary>
         /// Add given entities to database entity set.
         /// </summary>
         /// <param name="entities"></param>
-        public IEnumerable<TEntity> AddRange(IEnumerable<TEntity> entities) => _context.Set<TEntity>().AddRange(entities);
+        public IEnumerable<T> AddRange(IEnumerable<T> entities) => _context.Set<T>().AddRange(entities);
 
         /// <summary>
         /// Set given entity to be updated to database entity set.
         /// </summary>
         /// <param name="entity"></param>
-        public TEntity Update(TEntity entity)
+        public T Update(T entity)
         {
             _context.Entry(entity).State = EntityState.Modified;
             return entity;
@@ -101,7 +102,7 @@ namespace Stuart.Repository
         /// Set given entities to be updated to database entity set.
         /// </summary>
         /// <param name="entity"></param>
-        public IEnumerable<TEntity> UpdateRange(IEnumerable<TEntity> entities)
+        public IEnumerable<T> UpdateRange(IEnumerable<T> entities)
             => entities.Select(e => { _context.Entry(e).State = EntityState.Modified; return e; });
         #endregion
 
@@ -110,33 +111,33 @@ namespace Stuart.Repository
         /// Remove given entity from database entity set.
         /// </summary>
         /// <param name="entity"></param>
-        public TEntity Remove(TEntity entity) => _context.Set<TEntity>().Remove(entity);
+        public T Remove(T entity) => _context.Set<T>().Remove(entity);
 
         /// <summary>
         /// Remove an entity from database entity set got by given key.
         /// </summary>
         /// <param name="key"></param>
-        public TEntity Remove(TKey key) => _context.Set<TEntity>().Remove(_context.Set<TEntity>().Find(key));
+        public T Remove(K key) => _context.Set<T>().Remove(_context.Set<T>().Find(key));
 
         /// <summary>
         /// Remove all given entities from database set.
         /// </summary>
         /// <param name="entities"></param>
-        public IEnumerable<TEntity> RemoveRange(IEnumerable<TEntity> entities) => _context.Set<TEntity>().RemoveRange(entities);
+        public IEnumerable<T> RemoveRange(IEnumerable<T> entities) => _context.Set<T>().RemoveRange(entities);
 
         /// <summary>
         /// Remove all entities from database set with key in given keys.
         /// </summary>
         /// <param name="keys"></param>
-        public IEnumerable<TEntity> RemoveRange(IEnumerable<TKey> keys)
+        public IEnumerable<T> RemoveRange(IEnumerable<K> keys)
         {
-            var entities = _context.Set<TEntity>()
+            var entities = _context.Set<T>()
                                    .Join(keys,
                                         entity => entity.Id,
                                         key => key,
                                         (entity, key) => entity);
 
-            return _context.Set<TEntity>().RemoveRange(entities);
+            return _context.Set<T>().RemoveRange(entities);
         }
         #endregion
     }
